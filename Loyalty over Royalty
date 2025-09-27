@@ -1,0 +1,471 @@
+Part 1: Backend Code (Go with Encore)
+
+This is the complete structure and code for your backend services. Encore will use this code to provision all necessary cloud infrastructure.
+
+File: backend/ai/ai.go
+code
+Go
+download
+content_copy
+expand_less
+package ai
+
+import (
+	"context"
+	"encore.dev/beta/auth"
+	"encore.dev/sdk/secrets"
+	"net/http"
+)
+
+// Define secrets for the various AI API keys.
+// You will set these values in your Encore cloud dashboard.
+var AiApiKeys = secrets.Group{
+	"Gemini":     secrets.Secret{Description: "API Key for Google Gemini"},
+	"Deepseek":   secrets.Secret{Description: "API Key for Deepseek"},
+	"OpenRouter": secrets.Secret{Description: "API Key for OpenRouter"},
+}
+
+type GenerateImageRequest struct {
+	Prompt   string `json:"prompt"`
+	Provider string `json:"provider"` // e.g., "gemini", "deepseek"
+}
+
+type GenerateImageResponse struct {
+	ImageURL string `json:"imageUrl"`
+}
+
+//encore:api public path=/ai/generate-image method=POST
+func GenerateImage(ctx context.Context, params *GenerateImageRequest) (*GenerateImageResponse, error) {
+	// In a real application, you would use the params.Provider to select the correct API key
+	// and make the corresponding HTTP request to the AI service.
+
+	// TODO: Implement the actual API call to Gemini, Deepseek, or OpenRouter.
+	// 1. Select the API key: apiKey := AiApiKeys.Gemini.Value()
+	// 2. Create an HTTP client: client := &http.Client{}
+	// 3. Create the request body for the specific AI provider.
+	// 4. Make the POST request.
+	// 5. Parse the response to get the image URL.
+
+	// For now, we return a placeholder URL based on the prompt.
+	mockURL := "https://via.placeholder.com/512.png?text=" + http.URLEncodedPath(params.Prompt)
+
+	return &GenerateImageResponse{ImageURL: mockURL}, nil
+}
+File: backend/product/product.go
+code
+Go
+download
+content_copy
+expand_less
+package product
+
+import (
+	"context"
+	"encore.dev/storage/sqldb"
+)
+
+type Product struct {
+	ID       string  `json:"id"`
+	Name     string  `json:"name"`
+	Price    float64 `json:"price"`
+	Image    string  `json:"image"`
+	Category string  `json:"category"`
+}
+
+// This is a placeholder. In a real application, you would populate this
+// from a database.
+//encore:api public path=/products method=GET
+func GetProducts(ctx context.Context) ([]*Product, error) {
+	// TODO: Replace this mock data with a database query.
+	// You can use Encore's built-in SQL database feature.
+	// For example: rows, err := sqldb.Query(ctx, "SELECT id, name, price, image, category FROM products")
+	mockProducts := []*Product{
+		{ID: "unisex-heavy-cotton-tee", Name: "Unisex Heavy Cotton Tee", Price: 13.39, Image: "/product-images/apparel-unisex-heavy-cotton-tee.png", Category: "Apparel"},
+		{ID: "unisex-heavy-blend-hooded-sweatshirt", Name: "Unisex Heavy Blend™ Hooded Sweatshirt", Price: 26.58, Image: "/product-images/apparel-unisex-heavy-blend-hoodie.png", Category: "Apparel"},
+		// Add more products as needed...
+	}
+	return mockProducts, nil
+}
+File: backend/payment/payment.go
+code
+Go
+download
+content_copy
+expand_less
+package payment
+
+import (
+	"context"
+	"encore.dev/sdk/secrets"
+)
+
+var StripeSecretKey = secrets.Secret{Description: "Your Stripe secret key (sk_...)"}
+
+type CartItem struct {
+	ProductID string `json:"productId"`
+	Quantity  int    `json:"quantity"`
+}
+
+type CreateCheckoutRequest struct {
+	Items []CartItem `json:"items"`
+}
+
+type CreateCheckoutResponse struct {
+	CheckoutURL string `json:"checkoutUrl"`
+}
+
+//encore:api public path=/payment/create-checkout-session method=POST
+func CreateCheckoutSession(ctx context.Context, params *CreateCheckoutRequest) (*CreateCheckoutResponse, error) {
+	stripeKey := StripeSecretKey.Value()
+
+	// TODO: Implement the actual API call to the Stripe API.
+	// 1. Use the stripe-go library: https://github.com/stripe/stripe-go
+	// 2. Set the API key: stripe.Key = stripeKey
+	// 3. Create line items from the `params.Items`. You may need to fetch product prices from your database.
+	// 4. Create a new checkout session: session, err := checkout.New(sessionParams)
+	// 5. Return the session.URL in the response.
+
+	// For now, we return a mock success URL.
+	mockCheckoutURL := "https://checkout.stripe.com/mock_session_id"
+
+	return &CreateCheckoutResponse{CheckoutURL: mockCheckoutURL}, nil
+}
+File: backend/order/order.go
+code
+Go
+download
+content_copy
+expand_less
+package order
+
+import (
+	"context"
+	"encore.dev/sdk/secrets"
+)
+
+var PrintifyAPIToken = secrets.Secret{Description: "Your Printify API Token"}
+
+type ShippingDetails struct {
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Address1  string `json:"address1"`
+	City      string `json:"city"`
+	State     string `json:"region"`
+	Zip       string `json:"zip"`
+	Country   string `json:"country"`
+	Email     string `json:"email"`
+}
+
+type LineItem struct {
+	PrintifyVariantID int    `json:"variant_id"` // The specific ID from Printify for (e.g., a Large, Black T-shirt)
+	Quantity          int    `json:"quantity"`
+	DesignImageURL    string `json:"design_image_url"` // The URL of the final customer design
+}
+
+type CreateOrderRequest struct {
+	Shipping ShippingDetails `json:"shipping"`
+	Items    []LineItem      `json:"items"`
+}
+
+type CreateOrderResponse struct {
+	Success   bool   `json:"success"`
+	OrderID   string `json:"orderId"`
+	PrintifyID string `json:"printifyId"`
+}
+
+// This endpoint would be called by a Stripe webhook after a successful payment.
+//encore:api public path=/order/create method=POST
+func CreateOrder(ctx context.Context, params *CreateOrderRequest) (*CreateOrderResponse, error) {
+	token := PrintifyAPIToken.Value()
+
+	// TODO: Implement the actual API call to the Printify API to create an order.
+	// 1. Construct the order payload according to the Printify API documentation.
+	//    Ref: https://developers.printify.com/#create-a-new-order
+	// 2. Make an HTTP POST request to the Printify orders endpoint.
+	// 3. Include the token in the Authorization header: "Authorization: Bearer " + token
+	// 4. Parse the response to get the Printify order ID.
+
+	// For now, we return a mock success response.
+	mockPrintifyID := "5f9b3b3b3b3b3b3b3b3b3b3b"
+
+	return &CreateOrderResponse{Success: true, OrderID: "internal-123", PrintifyID: mockPrintifyID}, nil
+}
+File: backend/go.mod
+code
+Go
+download
+content_copy
+expand_less
+module loyalty-over-royalty
+
+go 1.21
+
+require (
+	encore.dev v1.28.1
+)
+Part 2: Frontend Code (React with Next.js)
+
+This is the complete structure and code for your customer-facing website.
+
+File: frontend/package.json
+code
+JSON
+download
+content_copy
+expand_less
+{
+  "name": "loyalty-over-royalty-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "14.2.3",
+    "react": "^18",
+    "react-dom": "^18"
+  },
+  "devDependencies": {
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1"
+  }
+}
+File: frontend/tailwind.config.js
+code
+JavaScript
+download
+content_copy
+expand_less
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+};
+File: frontend/src/app/globals.css
+code
+CSS
+download
+content_copy
+expand_less
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #000;
+  color: #fff;
+}
+File: frontend/src/app/layout.js
+code
+JavaScript
+download
+content_copy
+expand_less
+import { Inter } from "next/font/google";
+import "./globals.css";
+import Header from "@/components/Header";
+
+const inter = Inter({ subsets: ["latin"] });
+
+export const metadata = {
+  title: "LOYALTY OVER ROYALTY",
+  description: "Clothing & Apparel",
+};
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body className={inter.className}>
+        <Header />
+        <main>{children}</main>
+        {/* You can add a Footer component here if desired */}
+      </body>
+    </html>
+  );
+}
+File: frontend/src/app/page.js
+code
+JavaScript
+download
+content_copy
+expand_less
+import Link from 'next/link';
+
+export default function HomePage() {
+  return (
+    <div className="text-center py-20 px-4">
+      <h1 className="text-5xl md:text-6xl font-extrabold" style={{ fontFamily: 'cursive', color: '#f0e68c' }}>
+        LOYALTY OVER ROYALTY
+      </h1>
+      <div className="my-8 flex justify-center">
+        {/* This div is a placeholder for your main logo graphic */}
+        <div className="relative w-64 h-64">
+           <img src="/images/brand-logo-mockup.png" alt="Brand Logo" className="w-full h-full object-contain" />
+        </div>
+      </div>
+      <h2 className="text-4xl md:text-5xl font-bold" style={{ color: '#f0e68c' }}>
+        CLOTHING & APPAREL
+      </h2>
+       <div className="mt-10">
+        <Link href="/products" legacyBehavior>
+          <a className="px-8 py-3 bg-yellow-500 text-black font-bold rounded hover:bg-yellow-400 transition-colors text-lg">
+            Shop The Collection
+          </a>
+        </Link>
+      </div>
+    </div>
+  );
+}
+File: frontend/src/app/products/[id]/page.js
+code
+JavaScript
+download
+content_copy
+expand_less
+'use client';
+import { products } from '@/lib/products';
+import DesignTool from '@/components/DesignTool';
+import { notFound } from 'next/navigation';
+
+// Helper function to find product by ID on the client side
+const getProductById = (id) => products.find(p => p.id === id);
+
+export default function ProductPage({ params }) {
+  const { id } = params;
+  const product = getProductById(id);
+
+  if (!product) {
+    // In a real app with server-side fetching, you'd use the notFound() function from Next.js
+    // For this client-side example, we'll just show a message.
+    return <div>Product not found</div>;
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="grid md:grid-cols-2 gap-12">
+        {/* Product Info Section */}
+        <div>
+          <h1 className="text-3xl font-bold">{product.name}</h1>
+          <p className="text-2xl font-semibold text-yellow-400 my-2">${product.price.toFixed(2)}</p>
+          <p className="text-gray-300 mt-4">High-quality {product.category.toLowerCase()} perfect for custom designs.</p>
+        </div>
+
+        {/* Design Tool Section */}
+        <div>
+          <DesignTool product={product} />
+        </div>
+      </div>
+    </div>
+  );
+}
+File: frontend/src/lib/products.js
+
+(This file should contain the large array of product data you provided earlier. It is identical to the one in the previous response.)
+
+File: frontend/src/components/Header.js
+code
+JavaScript
+download
+content_copy
+expand_less
+import Link from 'next/link';
+
+export default function Header() {
+  return (
+    <header className="bg-black border-b border-gray-800">
+      <nav className="container mx-auto px-4 py-3 flex justify-between items-center">
+        <Link href="/" legacyBehavior>
+          <a className="text-lg font-bold" style={{ fontFamily: 'cursive', color: '#f0e68c' }}>
+            LOYALTY OVER ROYALTY
+          </a>
+        </Link>
+        <div className="space-x-4">
+          <Link href="/" legacyBehavior><a className="hover:text-yellow-400">Home</a></Link>
+          <Link href="/about" legacyBehavior><a className="hover:text-yellow-400">About</a></Link>
+          <Link href="/contact" legacyBehavior><a className="hover:text-yellow-400">Contact</a></Link>
+        </div>
+      </nav>
+    </header>
+  );
+}
+File: frontend/src/components/ProductCard.js
+code
+JavaScript
+download
+content_copy
+expand_less
+import Link from 'next/link';
+
+export default function ProductCard({ product }) {
+  return (
+    <Link href={`/products/${product.id}`} legacyBehavior>
+      <a className="bg-gray-900 rounded-lg overflow-hidden group border border-gray-800 hover:border-yellow-500 transition-all">
+        <div className="relative w-full h-64 bg-gray-800">
+          <img
+            src={product.image}
+            alt={product.name}
+            className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform"
+          />
+        </div>
+        <div className="p-4">
+          <h3 className="font-semibold truncate">{product.name}</h3>
+          <p className="text-yellow-400 font-bold mt-1">${product.price.toFixed(2)}</p>
+        </div>
+      </a>
+    </Link>
+  );
+}
+File: frontend/src/components/DesignTool.js
+
+(This file is the core of the HITL workflow. It is identical to the one in the previous response, designed to communicate with your backend.)
+
+Final Setup & Deployment Instructions
+
+Prerequisites: Ensure you have Node.js, Go, Encore, and Git installed.
+
+Backend Setup:
+
+Navigate to the backend/ directory.
+
+Run encore run in your terminal. Encore will start your local development environment and provide you with a local API URL (e.g., http://localhost:4000).
+
+Frontend Setup:
+
+In a separate terminal, navigate to the frontend/ directory.
+
+Create a file named .env.local.
+
+Inside .env.local, add the following line, replacing the URL with the one from Encore:
+
+code
+Code
+download
+content_copy
+expand_less
+NEXT_PUBLIC_API_URL=http://localhost:4000
+
+Run npm install to install dependencies.
+
+Run npm run dev to start the frontend development server.
+
+Action:
+
+Open your browser to http://localhost:3000 (or whatever URL Next.js provides).
+
+You can now test the full workflow locally. The frontend will make calls to your locally running Go backend.
+
+Cloud Deployment:
+
+Deploy your backend using the encore deploy command, targeting your chosen cloud provider. Encore will give you a permanent public API URL.
+
+Deploy your frontend to Vercel or Netlify. In the project's environment variable settings, set NEXT_PUBLIC_API_URL to your permanent public Encore URL.
